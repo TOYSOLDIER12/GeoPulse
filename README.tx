@@ -1,0 +1,29 @@
+Install dependencies
+pip install -r requirements.txt
+
+Start infrastructure
+
+For sync-only test:
+docker compose up -d neo4j
+For Kafka test:
+docker compose up -d zookeeper kafka neo4j kafka-init
+Pick one timestamp (same for both runs, rounded to 15 min)
+Example: 2026-04-14T12:15
+
+Run sync baseline
+python main_sync.py --timestamp 2026-04-14T12:15
+or via harness:
+python benchmark_experiment.py --mode sync --timestamp 2026-04-14T12:15
+
+Run Kafka mode
+Before each Kafka run, reset broker data to avoid consuming old topic history:
+docker compose down -v
+docker compose up -d zookeeper kafka neo4j kafka-init
+Then run:
+python benchmark_experiment.py --mode kafka --timestamp 2026-04-14T12:15
+
+Compare outputs
+
+Sync summary comes from main_sync.py
+Kafka and sync benchmark timing comes from benchmark_experiment.py
+Use the final INFO lines (elapsed seconds, processed/skipped counts) to compare latency and throughput.

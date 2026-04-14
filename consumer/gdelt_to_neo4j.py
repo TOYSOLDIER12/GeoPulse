@@ -1,161 +1,94 @@
-# gdelt_to_neo4j_pure.py
+import argparse
 import json
-import re
+import sys
+import time
+from pathlib import Path
+
 from kafka import KafkaConsumer
-from neo4j import GraphDatabase
-from datetime import datetime
 
-# -------------------------
-# CONFIG
-# -------------------------
-KAFKA_TOPIC = "gdelt-events"
-KAFKA_BROKER = "localhost:9092"
-NEO4J_URI = "bolt://localhost:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "Test1234"
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
-# -------------------------
-# NORMALIZATION HELPERS
-# -------------------------
-def normalize_country(name: str):
-    if not name:
-        return None
-    name = name.strip().upper()
-    return name.title()
+from pipeline_common import Neo4jWriter, write_event_to_neo4j
 
-def normalize_actor(actor: str):
-    if not actor:
-        return None
-    actor = actor.strip()
-    actor = re.sub(r'\s+', ' ', actor)
-    return actor.title()
 
-def classify_tone(tone_value: float):
-    if tone_value > 1:
-        return "Positive"
-    elif tone_value < -1:
-        return "Negative"
-    else:
-        return "Neutral"
+DEFAULT_KAFKA_TOPIC = "gdelt-events"
+DEFAULT_KAFKA_BROKER = "localhost:9092"
+DEFAULT_NEO4J_URI = "bolt://localhost:7687"
+DEFAULT_NEO4J_USER = "neo4j"
+DEFAULT_NEO4J_PASSWORD = "password"
 
-# -------------------------
-# NEO4J FUNCTIONS
-# -------------------------
-class Neo4jWriter:
-    def __init__(self, uri, user, password):
-        self.driver = GraphDatabase.driver(uri, auth=(user, password))
 
-    def close(self):
-        self.driver.close()
+def build_consumer(topic: str, bootstrap_servers: str) -> KafkaConsumer:
+    return KafkaConsumer(
+        topic,
+        bootstrap_servers=[bootstrap_servers],
+        value_deserializer=lambda message: json.loads(message.decode("utf-8")),
+        auto_offset_reset="earliest",
+        enable_auto_commit=True,
+    )
 
-    def merge_actor(self, actor_name):
-        if not actor_name:
-            return None
-        with self.driver.session() as session:
-            return session.execute_write(
-                lambda tx: tx.run(
-                    "MERGE (a:Actor {name:$name}) RETURN a", name=actor_name
-                ).single()
-            )
 
-    def merge_country(self, country_name):
-        if not country_name:
-            return None
-        with self.driver.session() as session:
-            return session.execute_write(
-                lambda tx: tx.run(
-                    "MERGE (c:Country {name:$name}) RETURN c", name=country_name
-                ).single()
-            )
+def run_consumer(topic: str, bootstrap_servers: str, neo4j_uri: str, neo4j_user: str, neo4j_password: str, max_events: int | None = None):
+    consumer = build_consumer(topic, bootstrap_servers)
+    neo4j_writer = Neo4jWriter(neo4j_uri, neo4j_user, neo4j_password)
 
-    def create_actor_relationship(self, actor1, actor2, event_type, tone, event_desc, timestamp):
-        if not actor1 or not actor2:
-            return
-        if actor1 == actor2:
-            return  # skip self-interaction for actors
-        with self.driver.session() as session:
-            session.execute_write(
-                lambda tx: tx.run(
-                    """
-                    MATCH (a1:Actor {name:$a1}), (a2:Actor {name:$a2})
-                    MERGE (a1)-[r:INTERACTED {event:$event}]->(a2)
-                    SET r.type = $type, r.tone = $tone, r.timestamp = $ts
-                    """,
-                    a1=actor1, a2=actor2,
-                    type=event_type, tone=tone,
-                    event=event_desc, ts=timestamp
-                )
-            )
+    processed_events = 0
+    skipped_events = 0
+    started_at = time.perf_counter()
 
-    def create_country_relationship(self, country1, country2, event_type, tone, event_desc, timestamp):
-        if not country1 or not country2:
-            return
-        with self.driver.session() as session:
-            session.execute_write(
-                lambda tx: tx.run(
-                    """
-                    MERGE (c1:Country {name:$c1})
-                    MERGE (c2:Country {name:$c2})
-                    MERGE (c1)-[r:RELATES_TO {event:$event}]->(c2)
-                    SET r.type = $type, r.tone = $tone, r.timestamp = $ts
-                    """,
-                    c1=country1, c2=country2,
-                    type=event_type, tone=tone,
-                    event=event_desc, ts=timestamp
-                )
-            )
+    print("[INFO] Starting Kafka → Neo4j stream...")
 
-# -------------------------
-# KAFKA CONSUMER
-# -------------------------
-consumer = KafkaConsumer(
-    KAFKA_TOPIC,
-    bootstrap_servers=[KAFKA_BROKER],
-    value_deserializer=lambda m: json.loads(m.decode('utf-8')),
-    auto_offset_reset='earliest',
-    enable_auto_commit=True
-)
+    try:
+        for message in consumer:
+            event = message.value
+            try:
+                if write_event_to_neo4j(event, neo4j_writer):
+                    processed_events += 1
+                    print(f"[INFO] Event {event.get('event_id')} written")
+                else:
+                    skipped_events += 1
+                    print(f"[WARN] Skipping event {event.get('event_id')} due to missing data")
 
-neo4j_writer = Neo4jWriter(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
+                if max_events is not None and processed_events >= max_events:
+                    break
 
-print("[INFO] Starting Kafka → Neo4j stream...")
+            except Exception as error:
+                skipped_events += 1
+                print(f"[ERROR] Failed to write event {event.get('event_id')}: {error}")
 
-try:
-    for msg in consumer:
-        event = msg.value
-        try:
-            # normalize
-            actor1 = normalize_actor(event.get("actor1_name"))
-            actor2 = normalize_actor(event.get("actor2_name"))
-            country1 = normalize_country(event.get("actor1_country"))
-            country2 = normalize_country(event.get("actor2_country"))
-            tone_value = float(event.get("tone", 0))
-            tone_cat = classify_tone(tone_value)
-            event_type = str(event.get("event_code", "Other"))
-            event_desc = str(event.get("event_root_code", "Unknown"))
-            ts = event.get("date", datetime.utcnow().isoformat())
+    finally:
+        elapsed_seconds = time.perf_counter() - started_at
+        print(
+            f"[INFO] Consumer summary: processed={processed_events}, skipped={skipped_events}, elapsed_seconds={elapsed_seconds:.2f}"
+        )
+        neo4j_writer.close()
+        consumer.close()
 
-            # skip if mandatory data missing
-            if not actor1 or not actor2 or not country1 or not country2:
-                print(f"[WARN] Skipping event {event.get('event_id')} due to missing data")
-                continue
 
-            # merge nodes
-            neo4j_writer.merge_actor(actor1)
-            neo4j_writer.merge_actor(actor2)
-            neo4j_writer.merge_country(country1)
-            neo4j_writer.merge_country(country2)
+def parse_args():
+    parser = argparse.ArgumentParser(description="Consume GDELT events from Kafka and write them to Neo4j.")
+    parser.add_argument("--topic", default=DEFAULT_KAFKA_TOPIC)
+    parser.add_argument("--bootstrap-server", default=DEFAULT_KAFKA_BROKER)
+    parser.add_argument("--neo4j-uri", default=DEFAULT_NEO4J_URI)
+    parser.add_argument("--neo4j-user", default=DEFAULT_NEO4J_USER)
+    parser.add_argument("--neo4j-password", default=DEFAULT_NEO4J_PASSWORD)
+    parser.add_argument("--max-events", type=int, default=None, help="Stop after processing this many events.")
+    return parser.parse_args()
 
-            # create relationships
-            neo4j_writer.create_actor_relationship(actor1, actor2, event_type, tone_cat, event_desc, ts)
-            neo4j_writer.create_country_relationship(country1, country2, event_type, tone_cat, event_desc, ts)
 
-            print(f"[INFO] Event {event.get('event_id')} written: {actor1} -> {actor2} | {country1} -> {country2}")
+def main():
+    args = parse_args()
+    run_consumer(
+        topic=args.topic,
+        bootstrap_servers=args.bootstrap_server,
+        neo4j_uri=args.neo4j_uri,
+        neo4j_user=args.neo4j_user,
+        neo4j_password=args.neo4j_password,
+        max_events=args.max_events,
+    )
 
-        except Exception as e:
-            print(f"[ERROR] Failed to write event {event.get('event_id')}: {e}")
 
-finally:
-    neo4j_writer.close()
-    consumer.close()
-
+if __name__ == "__main__":
+    main()

@@ -1,9 +1,16 @@
 import time
 from datetime import datetime, timezone, timedelta
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from gdelt_fetcher import fetch_gdelt_file, extract_csv
 from gdelt_parser import parse_gdelt_csv
 from kafka_producer import GDELTKafkaProducer
-from normalizer import normalize_event
+from pipeline_common import normalize_gdelt_event
 
 
 POLL_INTERVAL_SECONDS = 900  # 15 minutes
@@ -11,35 +18,6 @@ POLL_INTERVAL_SECONDS = 900  # 15 minutes
 def round_down_to_15(dt):
     minute = (dt.minute // 15) * 15
     return dt.replace(minute=minute, second=0, microsecond=0)
-
-
-
-def clean_event(event):
-    """
-    Normalize GDELT event before sending to Kafka.
-    Ensures:
-    - Actor names are standardized
-    - Country names are standardized
-    - No null values for required fields
-    - Optional: add tone or interaction type
-    """
-    actor = event.get("Actor1Name")
-    country = event.get("Actor1CountryCode")
-
-    # Normalize names
-    event["Actor1Name"] = normalize_actor_name(actor)
-    event["Actor1CountryCode"] = normalize_country_name(country)
-
-    actor2 = event.get("Actor2Name")
-    country2 = event.get("Actor2CountryCode")
-    event["Actor2Name"] = normalize_actor_name(actor2)
-    event["Actor2CountryCode"] = normalize_country_name(country2)
-
-    # Skip any events with missing mandatory info
-    if not event["Actor1Name"] or not event["Actor2Name"]:
-        return None
-
-    return event
 
 
 def main():
@@ -55,7 +33,7 @@ def main():
 
             event_count = 0
             for event in parse_gdelt_csv(csv_file):
-                normalized_event = normalize_event(event)  # normalize in place
+                normalized_event = normalize_gdelt_event(event)
                 producer.send_event(normalized_event)
                 event_count += 1
 
