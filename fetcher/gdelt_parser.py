@@ -1,5 +1,8 @@
 import csv
-from models import GDELTEvent
+try:
+    from .models import GDELTEvent
+except ImportError:
+    from models import GDELTEvent
 
 def parse_gdelt_csv(csv_file):
     reader = csv.reader(csv_file, delimiter="\t")

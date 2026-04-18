@@ -1,0 +1,38 @@
+{
+  "window": {
+    "end_timestamp": "2026-04-14T12:15:00+00:00",
+    "slices": 192
+  },
+  "dataset": {
+    "fetched_slices": 192,
+    "missing_slices": 0,
+    "total_events": 53829,
+    "fetch_seconds": 28.649,
+    "parse_seconds": 2.472,
+    "normalize_seconds": 0.348,
+    "dataset_file": "massive_batch_dataset.jsonl",
+    "prepare_total_seconds": 31.977
+  },
+  "sync": {
+    "processed": 53829,
+    "skipped": 0,
+    "write_seconds": 489.662,
+    "events_per_second": 109.931
+  },
+  "kafka": {
+    "topic": "gdelt-events-bench-89c3338d",
+    "produced": 53829,
+    "consumed": 53829,
+    "processed": 53829,
+    "skipped": 0,
+    "produce_seconds": 3.091,
+    "consume_write_seconds": 446.233,
+    "end_to_end_seconds": 449.323,
+    "events_per_second": 119.8
+  },
+  "comparison": {
+    "sync_write_seconds": 489.662,
+    "kafka_end_to_end_seconds": 449.323,
+    "kafka_to_sync_time_ratio": 0.918
+  }
+}

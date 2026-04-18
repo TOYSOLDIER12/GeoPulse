@@ -1,0 +1,19 @@
+(venv) ➜  GeoPulse git:(exprimental) ✗ python3 massive_batch_experiment.py --mode both --slices 16 --end-timestamp 2026-04-14T12:15 --output-json small_batch_results.json
+[INFO] Building dataset for 16 slices ending at 2026-04-14T12:15:00+00:00
+[INFO] Running synchronous benchmark...
+[INFO] Sync done: {'processed': 5503, 'skipped': 0, 'write_seconds': 58.988, 'events_per_second': 93.29}
+[INFO] Running Kafka benchmark...
+[INFO] Kafka done: {'topic': 'gdelt-events-bench-b219652b', 'produced': 5503, 'consumed': 5503, 'processed': 5503, 'skipped': 0, 'produce_seconds': 0.401, 'consume_write_seconds': 31.026, 'end_to_end_seconds': 31.427, 'events_per_second': 175.107}
+[INFO] Comparison: {'sync_write_seconds': 58.988, 'kafka_end_to_end_seconds': 31.427, 'kafka_to_sync_time_ratio': 0.533}
+[INFO] Results saved to small_batch_results.json
+(venv) ➜  GeoPulse git:(exprimental) ✗ python3 massive_batch_experiment.py --mode both --slices 16 --end-timestamp 2026-04-14T12:15 --output-json small_batch_results.json
+(venv) ➜  GeoPulse git:(exprimental) ✗ python3 massive_batch_experiment.py --mode both --slices 192 --end-timestamp 2026-04-14T12:15 --output-json big_batch_results.json
+[INFO] Building dataset for 192 slices ending at 2026-04-14T12:15:00+00:00
+[INFO] Running synchronous benchmark...
+[INFO] Sync done: {'processed': 53829, 'skipped': 0, 'write_seconds': 489.662, 'events_per_second': 109.931}
+[INFO] Running Kafka benchmark...
+[INFO] Kafka done: {'topic': 'gdelt-events-bench-89c3338d', 'produced': 53829, 'consumed': 53829, 'processed': 53829, 'skipped': 0, 'produce_seconds': 3.091, 'consume_write_seconds': 446.233, 'end_to_end_seconds': 449.323, 'events_per_second': 119.8}
+[INFO] Comparison: {'sync_write_seconds': 489.662, 'kafka_end_to_end_seconds': 449.323, 'kafka_to_sync_time_ratio': 0.918}
+[INFO] Results saved to big_batch_results.json
+(venv) ➜  GeoPulse git:(exprimental) ✗ python3 plot_kafka_sync_batches.py --small-json small_batch_results.json --big-json big_batch_results.json --output-png kafka_vs_sync_small_big.png
+[INFO] Plot saved to kafka_vs_sync_small_big.png
