@@ -12,7 +12,7 @@ KAFKA_TOPIC = "gdelt-events"
 KAFKA_BROKER = "localhost:9092"
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "Test1234"
+NEO4J_PASSWORD = "password"
 
 # -------------------------
 # NORMALIZATION HELPERS
@@ -121,39 +121,45 @@ neo4j_writer = Neo4jWriter(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
 print("[INFO] Starting Kafka → Neo4j stream...")
 
 try:
-    for msg in consumer:
-        event = msg.value
-        try:
-            # normalize
-            actor1 = normalize_actor(event.get("actor1_name"))
-            actor2 = normalize_actor(event.get("actor2_name"))
-            country1 = normalize_country(event.get("actor1_country"))
-            country2 = normalize_country(event.get("actor2_country"))
-            tone_value = float(event.get("tone", 0))
-            tone_cat = classify_tone(tone_value)
-            event_type = str(event.get("event_code", "Other"))
-            event_desc = str(event.get("event_root_code", "Unknown"))
-            ts = event.get("date", datetime.utcnow().isoformat())
+    while True:
+        records = consumer.poll(timeout_ms=1000)
+        if not records:
+            continue
 
-            # skip if mandatory data missing
-            if not actor1 or not actor2 or not country1 or not country2:
-                print(f"[WARN] Skipping event {event.get('event_id')} due to missing data")
-                continue
+        for _partition, messages in records.items():
+            for msg in messages:
+                event = msg.value
+                try:
+                    # normalize
+                    actor1 = normalize_actor(event.get("actor1_name"))
+                    actor2 = normalize_actor(event.get("actor2_name"))
+                    country1 = normalize_country(event.get("actor1_country"))
+                    country2 = normalize_country(event.get("actor2_country"))
+                    tone_value = float(event.get("tone", 0))
+                    tone_cat = classify_tone(tone_value)
+                    event_type = str(event.get("event_code", "Other"))
+                    event_desc = str(event.get("event_root_code", "Unknown"))
+                    ts = event.get("date", datetime.utcnow().isoformat())
 
-            # merge nodes
-            neo4j_writer.merge_actor(actor1)
-            neo4j_writer.merge_actor(actor2)
-            neo4j_writer.merge_country(country1)
-            neo4j_writer.merge_country(country2)
+                    # skip if mandatory data missing
+                    if not actor1 or not actor2 or not country1 or not country2:
+                        print(f"[WARN] Skipping event {event.get('event_id')} due to missing data")
+                        continue
 
-            # create relationships
-            neo4j_writer.create_actor_relationship(actor1, actor2, event_type, tone_cat, event_desc, ts)
-            neo4j_writer.create_country_relationship(country1, country2, event_type, tone_cat, event_desc, ts)
+                    # merge nodes
+                    neo4j_writer.merge_actor(actor1)
+                    neo4j_writer.merge_actor(actor2)
+                    neo4j_writer.merge_country(country1)
+                    neo4j_writer.merge_country(country2)
 
-            print(f"[INFO] Event {event.get('event_id')} written: {actor1} -> {actor2} | {country1} -> {country2}")
+                    # create relationships
+                    neo4j_writer.create_actor_relationship(actor1, actor2, event_type, tone_cat, event_desc, ts)
+                    neo4j_writer.create_country_relationship(country1, country2, event_type, tone_cat, event_desc, ts)
 
-        except Exception as e:
-            print(f"[ERROR] Failed to write event {event.get('event_id')}: {e}")
+                    print(f"[INFO] Event {event.get('event_id')} written: {actor1} -> {actor2} | {country1} -> {country2}")
+
+                except Exception as e:
+                    print(f"[ERROR] Failed to write event {event.get('event_id')}: {e}")
 
 finally:
     neo4j_writer.close()

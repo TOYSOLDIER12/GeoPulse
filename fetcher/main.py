@@ -6,7 +6,7 @@ from kafka_producer import GDELTKafkaProducer
 from normalizer import normalize_event
 
 
-POLL_INTERVAL_SECONDS = 900  # 15 minutes
+POLL_INTERVAL_SECONDS = 30  # 15 minutes
 
 def round_down_to_15(dt):
     minute = (dt.minute // 15) * 15
