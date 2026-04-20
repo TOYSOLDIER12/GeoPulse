@@ -3,36 +3,76 @@
     "end_timestamp": "2026-04-14T12:15:00+00:00",
     "slices": 192
   },
+  "experiment": {
+    "consumer_sleep_ms": 0.0,
+    "consumer_time_budget_seconds": null,
+    "failure_prob": 0.0,
+    "drop_prob": 0.0,
+    "pause_every_n_events": 0,
+    "pause_min_seconds": 2.0,
+    "pause_max_seconds": 5.0,
+    "max_retries": 0,
+    "retry_backoff_ms": 0.0,
+    "random_seed": 42,
+    "kafka_drain_timeout_seconds": null
+  },
   "dataset": {
     "fetched_slices": 192,
     "missing_slices": 0,
     "total_events": 53829,
-    "fetch_seconds": 28.649,
-    "parse_seconds": 2.472,
-    "normalize_seconds": 0.348,
+    "fetch_seconds": 39.146,
+    "parse_seconds": 2.604,
+    "normalize_seconds": 0.39,
     "dataset_file": "massive_batch_dataset.jsonl",
-    "prepare_total_seconds": 31.977
+    "prepare_total_seconds": 42.705
   },
   "sync": {
+    "consumed_by_consumer": 53829,
+    "not_reaching_consumer": 0,
+    "not_reaching_consumer_pct": 0.0,
+    "reaching_consumer_pct": 100.0,
+    "processing_failures": 0,
+    "dropped_before_write": 0,
+    "pause_events": 0,
+    "pause_total_seconds": 0.0,
+    "retry_attempts": 0,
+    "recovered_after_retry": 0,
+    "final_lost_after_retries": 0,
     "processed": 53829,
     "skipped": 0,
-    "write_seconds": 489.662,
-    "events_per_second": 109.931
+    "write_seconds": 590.902,
+    "events_per_second": 91.096
   },
   "kafka": {
-    "topic": "gdelt-events-bench-89c3338d",
+    "topic": "gdelt-events-bench-796812c2",
+    "consumed_by_consumer": 53829,
+    "not_reaching_consumer": 0,
+    "not_reaching_consumer_pct": 0.0,
+    "reaching_consumer_pct": 100.0,
+    "processing_failures": 0,
+    "dropped_before_write": 0,
+    "pause_events": 0,
+    "pause_total_seconds": 0.0,
+    "retry_attempts": 0,
+    "recovered_after_retry": 0,
+    "final_lost_after_retries": 0,
     "produced": 53829,
     "consumed": 53829,
     "processed": 53829,
     "skipped": 0,
-    "produce_seconds": 3.091,
-    "consume_write_seconds": 446.233,
-    "end_to_end_seconds": 449.323,
-    "events_per_second": 119.8
+    "delivery_gap": 0,
+    "produce_seconds": 3.034,
+    "consume_write_seconds": 496.675,
+    "end_to_end_seconds": 499.709,
+    "events_per_second": 107.721
   },
   "comparison": {
-    "sync_write_seconds": 489.662,
-    "kafka_end_to_end_seconds": 449.323,
-    "kafka_to_sync_time_ratio": 0.918
+    "sync_write_seconds": 590.902,
+    "kafka_end_to_end_seconds": 499.709,
+    "kafka_to_sync_time_ratio": 0.846,
+    "sync_not_reaching_consumer_pct": 0.0,
+    "kafka_not_reaching_consumer_pct": 0.0,
+    "kafka_loss_expected_zero": true,
+    "kafka_delivery_gap": 0
   }
 }

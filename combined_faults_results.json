@@ -1,0 +1,64 @@
+{
+  "window": {
+    "end_timestamp": "2026-04-14T12:15:00+00:00",
+    "slices": 192
+  },
+  "experiment": {
+    "consumer_sleep_ms": 0.0,
+    "consumer_time_budget_seconds": null,
+    "sync_loss_ratio": 0.05,
+    "sync_loss_seed": 42,
+    "pause_every_n_events": 500,
+    "pause_min_seconds": 2.0,
+    "pause_max_seconds": 5.0,
+    "kafka_drain_timeout_seconds": null
+  },
+  "dataset": {
+    "fetched_slices": 192,
+    "missing_slices": 0,
+    "total_events": 53829,
+    "fetch_seconds": 39.759,
+    "parse_seconds": 2.355,
+    "normalize_seconds": 0.373,
+    "dataset_file": "massive_batch_dataset.jsonl",
+    "prepare_total_seconds": 42.999
+  },
+  "sync": {
+    "consumed_by_consumer": 51137,
+    "not_reaching_consumer": 2692,
+    "not_reaching_consumer_pct": 5.001,
+    "reaching_consumer_pct": 94.999,
+    "processed": 51137,
+    "skipped": 0,
+    "lost_before_consumer": 2692,
+    "sync_loss_ratio": 0.05,
+    "target_consumed": 51137,
+    "write_seconds": 838.77,
+    "events_per_second": 60.967
+  },
+  "kafka": {
+    "topic": "gdelt-events-bench-b0e68c59",
+    "consumed_by_consumer": 53829,
+    "not_reaching_consumer": 0,
+    "not_reaching_consumer_pct": 0.0,
+    "reaching_consumer_pct": 100.0,
+    "produced": 53829,
+    "consumed": 53829,
+    "processed": 53829,
+    "skipped": 0,
+    "delivery_gap": 0,
+    "produce_seconds": 3.292,
+    "consume_write_seconds": 810.269,
+    "end_to_end_seconds": 813.561,
+    "events_per_second": 66.165
+  },
+  "comparison": {
+    "sync_write_seconds": 838.77,
+    "kafka_end_to_end_seconds": 813.561,
+    "kafka_to_sync_time_ratio": 0.97,
+    "sync_not_reaching_consumer_pct": 5.001,
+    "kafka_not_reaching_consumer_pct": 0.0,
+    "kafka_loss_expected_zero": true,
+    "kafka_delivery_gap": 0
+  }
+}

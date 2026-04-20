@@ -26,6 +26,22 @@ def pick_kafka_eps(result: dict) -> float:
     return float(result["kafka"]["events_per_second"])
 
 
+def pick_sync_loss_pct(result: dict) -> float:
+    return float(result["sync"]["not_reaching_consumer_pct"])
+
+
+def pick_kafka_loss_pct(result: dict) -> float:
+    return float(result["kafka"]["not_reaching_consumer_pct"])
+
+
+def pick_sync_loss_count(result: dict) -> int:
+    return int(result["sync"]["not_reaching_consumer"])
+
+
+def pick_kafka_loss_count(result: dict) -> int:
+    return int(result["kafka"]["not_reaching_consumer"])
+
+
 def add_value_labels(ax, bars):
     for bar in bars:
         height = bar.get_height()
@@ -55,7 +71,13 @@ def build_plot(small: dict, big: dict, output_png: Path):
         float(big["kafka"]["consume_write_seconds"]),
     ]
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    sync_loss_pct = [pick_sync_loss_pct(small), pick_sync_loss_pct(big)]
+    kafka_loss_pct = [pick_kafka_loss_pct(small), pick_kafka_loss_pct(big)]
+    sync_loss_count = [pick_sync_loss_count(small), pick_sync_loss_count(big)]
+    kafka_loss_count = [pick_kafka_loss_count(small), pick_kafka_loss_count(big)]
+
+    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
+    axes = axes.flatten()
     fig.suptitle("Sync vs Kafka: Small and Big Batch Comparison", fontsize=14, fontweight="bold")
 
     width = 0.35
@@ -98,6 +120,40 @@ def build_plot(small: dict, big: dict, output_png: Path):
     add_value_labels(ax2, bars_prod)
     add_value_labels(ax2, bars_cons)
 
+    ax3 = axes[3]
+    bars_sync_loss = ax3.bar([i - width / 2 for i in x], sync_loss_pct, width, label="Sync", color="#8ecae6")
+    bars_kafka_loss = ax3.bar([i + width / 2 for i in x], kafka_loss_pct, width, label="Kafka", color="#ffb703")
+    ax3.set_xticks(x, labels)
+    ax3.set_ylabel("Not reaching consumer (%)")
+    ax3.set_title("Reliability Loss")
+    ax3.legend()
+    add_value_labels(ax3, bars_sync_loss)
+    add_value_labels(ax3, bars_kafka_loss)
+
+    for idx, bar in enumerate(bars_sync_loss):
+        ax3.annotate(
+            f"missed={sync_loss_count[idx]}",
+            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+            xytext=(0, 18),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color="#1d3557",
+        )
+
+    for idx, bar in enumerate(bars_kafka_loss):
+        ax3.annotate(
+            f"missed={kafka_loss_count[idx]}",
+            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+            xytext=(0, 30),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color="#7f5539",
+        )
+
     plt.tight_layout()
     fig.savefig(output_png, dpi=150)
     print(f"[INFO] Plot saved to {output_png}")
@@ -107,10 +163,14 @@ def validate_result(name: str, result: dict):
     required_paths = [
         ("sync", "write_seconds"),
         ("sync", "events_per_second"),
+        ("sync", "not_reaching_consumer"),
+        ("sync", "not_reaching_consumer_pct"),
         ("kafka", "end_to_end_seconds"),
         ("kafka", "events_per_second"),
         ("kafka", "produce_seconds"),
         ("kafka", "consume_write_seconds"),
+        ("kafka", "not_reaching_consumer"),
+        ("kafka", "not_reaching_consumer_pct"),
     ]
 
     for section, key in required_paths:
