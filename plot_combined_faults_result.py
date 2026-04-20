@@ -43,66 +43,41 @@ def build_plot(result: dict, output_png: Path):
     x = [0, 1]
     width = 0.35
 
-    sync_time = float(value(sync, "write_seconds"))
-    kafka_time = float(value(kafka, "end_to_end_seconds"))
-    sync_eps = float(value(sync, "events_per_second"))
-    kafka_eps = float(value(kafka, "events_per_second"))
     sync_loss_pct = float(value(sync, "not_reaching_consumer_pct"))
     kafka_loss_pct = float(value(kafka, "not_reaching_consumer_pct"))
     sync_loss_count = int(value(sync, "not_reaching_consumer", 0))
     kafka_loss_count = int(value(kafka, "not_reaching_consumer", 0))
 
-    produced = int(value(kafka, "produced", value(result.get("dataset", {}), "total_events", 0)))
-    consumed = int(value(kafka, "consumed", value(kafka, "consumed_by_consumer", 0)))
-    delivery_gap = int(value(kafka, "delivery_gap", max(produced - consumed, 0)))
+    fig, ax = plt.subplots(1, 1, figsize=(8, 5))
+    ax.set_title("Combined Faults Result: Reliability Loss", fontsize=14, fontweight="bold")
 
-    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
-    axes = axes.flatten()
-    fig.suptitle("Combined Faults Result: Sync vs Kafka", fontsize=14, fontweight="bold")
+    bars_sync = ax.bar([x[0] - width / 2], [sync_loss_pct], width, label="Sync", color="#8ecae6")
+    bars_kafka = ax.bar([x[1] + width / 2], [kafka_loss_pct], width, label="Kafka", color="#ffb703")
+    ax.set_xticks(x, labels)
+    ax.set_ylabel("Not reaching consumer (%)")
+    ax.legend()
 
-    ax0 = axes[0]
-    bars = ax0.bar(labels, [sync_time, kafka_time], color=["#2a9d8f", "#e76f51"])
-    ax0.set_ylabel("Seconds")
-    ax0.set_title("Execution Time")
-    add_value_labels(ax0, bars)
+    max_loss = max(sync_loss_pct, kafka_loss_pct, 1.0)
+    ax.set_ylim(0, max_loss * 1.4)
 
-    ax1 = axes[1]
-    bars = ax1.bar(labels, [sync_eps, kafka_eps], color=["#264653", "#f4a261"])
-    ax1.set_ylabel("Events / second")
-    ax1.set_title("Throughput")
-    add_value_labels(ax1, bars)
+    add_value_labels(ax, bars_sync)
+    add_value_labels(ax, bars_kafka)
 
-    ax2 = axes[2]
-    bars_sync = ax2.bar([x[0] - width / 2], [sync_loss_pct], width, label="Sync", color="#8ecae6")
-    bars_kafka = ax2.bar([x[1] + width / 2], [kafka_loss_pct], width, label="Kafka", color="#ffb703")
-    ax2.set_xticks(x, labels)
-    ax2.set_ylabel("Not reaching consumer (%)")
-    ax2.set_title("Reliability Loss")
-    ax2.legend()
-    add_value_labels(ax2, bars_sync)
-    add_value_labels(ax2, bars_kafka)
-    ax2.annotate(
-        f"missed={sync_loss_count}",
-        xy=(x[0] - width / 2, sync_loss_pct),
-        xytext=(0, 18),
-        textcoords="offset points",
-        ha="center",
-        fontsize=8,
-    )
-    ax2.annotate(
-        f"missed={kafka_loss_count}",
-        xy=(x[1] + width / 2, kafka_loss_pct),
-        xytext=(0, 18),
-        textcoords="offset points",
-        ha="center",
-        fontsize=8,
-    )
+    def add_missed_label(bar, missed_count):
+        bar_center = bar.get_x() + bar.get_width() / 2
+        bar_height = bar.get_height()
+        ax.text(
+            bar_center,
+            bar_height + 0.6, #max(2.0, max_loss * 0.05),
+            f"missed={missed_count}",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.85, "pad": 1.5},
+        )
 
-    ax3 = axes[3]
-    bars = ax3.bar(["Produced", "Consumed", "Gap"], [produced, consumed, delivery_gap], color=["#577590", "#90be6d", "#e63946"])
-    ax3.set_ylabel("Events")
-    ax3.set_title("Kafka Delivery Check")
-    add_value_labels(ax3, bars)
+    add_missed_label(bars_sync[0], sync_loss_count)
+    add_missed_label(bars_kafka[0], kafka_loss_count)
 
     plt.tight_layout()
     fig.savefig(output_png, dpi=150)
